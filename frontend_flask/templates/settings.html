@@ -1,0 +1,125 @@
+{% extends "base.html" %}
+{% block title_suffix %} - Settings{% endblock %}
+
+{% block body %}
+<div class="app-layout">
+    <!-- Server sidebar -->
+    <div class="server-sidebar">
+        <a href="{{ url_for('dms_page') }}" class="server-icon dm-home-icon" title="Direct Messages">@</a>
+        <div class="server-divider"></div>
+        {% for server in servers %}
+        <a href="{{ url_for('server_page', server_id=server.id) }}" class="server-icon" title="{{ server.name }}">
+            {{ server.name[0]|upper }}
+        </a>
+        {% endfor %}
+        <div class="server-divider"></div>
+        <div class="server-icon add-server" onclick="document.getElementById('createServerModal').classList.add('active')" title="Create Server">+</div>
+    </div>
+
+    <!-- Settings sidebar -->
+    <div class="channel-sidebar">
+        <div class="channel-header">Settings</div>
+        <div class="channel-list">
+            <a href="{{ url_for('settings') }}" class="channel-item active">
+                <span class="hash">*</span> My Profile
+            </a>
+        </div>
+
+        <div class="user-bar">
+            <span class="username">{{ username }}</span>
+            <div class="user-bar-actions">
+                <a href="{{ url_for('friends_page') }}" class="user-bar-btn" title="Friends">&#9829;</a>
+                <a href="{{ url_for('settings') }}" class="user-bar-btn" title="Settings">&#9881;</a>
+                <a href="{{ url_for('logout') }}" class="logout-btn">Log out</a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main content -->
+    <div class="main-content">
+        <div class="chat-header">My Profile</div>
+        <div class="settings-content">
+            {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+            <div class="flash-messages">
+                {% for category, message in messages %}
+                <div class="flash {{ category }}">{{ message }}</div>
+                {% endfor %}
+            </div>
+            {% endif %}
+            {% endwith %}
+
+            <div class="settings-card">
+                <!-- Current avatar preview -->
+                <div class="settings-avatar-section">
+                    {% if profile.avatar_url %}
+                    <img src="{{ api_url }}{{ profile.avatar_url }}" class="settings-avatar-img" alt="Avatar">
+                    {% else %}
+                    <div class="settings-avatar-placeholder">{{ username[0]|upper }}</div>
+                    {% endif %}
+                </div>
+
+                <form method="POST" enctype="multipart/form-data" class="settings-form">
+                    <div class="form-group">
+                        <label>Username</label>
+                        <input type="text" value="{{ profile.username }}" disabled>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Display Name</label>
+                        <input type="text" name="display_name" value="{{ profile.display_name or '' }}" placeholder="How others see you">
+                    </div>
+
+                    <div class="form-group">
+                        <label>Profile Picture</label>
+                        <input type="file" name="avatar" accept="image/png,image/jpeg,image/gif,image/webp" class="file-input" id="avatarInput">
+                        <div class="file-hint">PNG, JPEG, GIF, or WebP. Max 10MB.</div>
+                    </div>
+
+                    <button type="submit" class="btn" style="margin-top: 8px;">Save Changes</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Create server modal -->
+<div class="modal-overlay" id="createServerModal">
+    <div class="modal-box">
+        <h2>Create a Server</h2>
+        <form method="POST" action="{{ url_for('create_server') }}">
+            <div class="form-group">
+                <label>Server Name</label>
+                <input type="text" name="name" required placeholder="My Awesome Server">
+            </div>
+            <div class="modal-actions">
+                <button type="button" class="btn-small btn-secondary" onclick="document.getElementById('createServerModal').classList.remove('active')">Cancel</button>
+                <button type="submit" class="btn-small btn-primary">Create</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+    // Live preview of selected avatar
+    document.getElementById('avatarInput').addEventListener('change', function(e) {
+        const file = e.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = function(ev) {
+            const existing = document.querySelector('.settings-avatar-img');
+            const placeholder = document.querySelector('.settings-avatar-placeholder');
+            if (existing) {
+                existing.src = ev.target.result;
+            } else if (placeholder) {
+                const img = document.createElement('img');
+                img.src = ev.target.result;
+                img.className = 'settings-avatar-img';
+                img.alt = 'Avatar';
+                placeholder.replaceWith(img);
+            }
+        };
+        reader.readAsDataURL(file);
+    });
+</script>
+{% endblock %}

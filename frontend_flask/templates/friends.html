@@ -1,0 +1,247 @@
+{% extends "base.html" %}
+{% block title_suffix %} - Friends{% endblock %}
+
+{% block body %}
+<div class="app-layout">
+    <!-- Server sidebar -->
+    <div class="server-sidebar">
+        <a href="{{ url_for('dms_page') }}" class="server-icon dm-home-icon" title="Direct Messages">@</a>
+        <div class="server-divider"></div>
+        {% for server in servers %}
+        <a href="{{ url_for('server_page', server_id=server.id) }}" class="server-icon" title="{{ server.name }}">
+            {{ server.name[0]|upper }}
+        </a>
+        {% endfor %}
+        <div class="server-divider"></div>
+        <div class="server-icon add-server" onclick="document.getElementById('createServerModal').classList.add('active')" title="Create Server">+</div>
+    </div>
+
+    <!-- Friends sidebar -->
+    <div class="channel-sidebar">
+        <div class="channel-header">Friends</div>
+        <div class="channel-list">
+            <a href="{{ url_for('friends_page') }}" class="channel-item active">
+                <span class="hash">&#9829;</span> All Friends
+            </a>
+            <a href="{{ url_for('dms_page') }}" class="channel-item">
+                <span class="dm-at">@</span> Direct Messages
+            </a>
+        </div>
+        <div class="user-bar">
+            <span class="username">{{ username }}</span>
+            <div class="user-bar-actions">
+                <a href="{{ url_for('settings') }}" class="user-bar-btn" title="Settings">&#9881;</a>
+                <a href="{{ url_for('logout') }}" class="logout-btn">Log out</a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main content -->
+    <div class="main-content">
+        <div class="chat-header">
+            Friends
+            <div class="chat-header-actions">
+                <button class="btn-small btn-primary" onclick="document.getElementById('addFriendModal').classList.add('active')">Add Friend</button>
+            </div>
+        </div>
+
+        <!-- Tabs -->
+        <div class="friends-tabs">
+            <button class="friends-tab active" onclick="showTab('all')">All</button>
+            <button class="friends-tab" onclick="showTab('pending')">Pending
+                {% if incoming_requests %}<span class="badge">{{ incoming_requests|length }}</span>{% endif %}
+            </button>
+            <button class="friends-tab" onclick="showTab('blocked')">Blocked</button>
+        </div>
+
+        <div class="friends-content">
+            <!-- All Friends -->
+            <div id="tab-all" class="friends-list">
+                {% if friends %}
+                {% for f in friends %}
+                <div class="friend-card">
+                    <div class="friend-avatar">
+                        <div class="status-dot status-{{ f.status or 'offline' }}"></div>
+                        {{ f.username[0]|upper }}
+                    </div>
+                    <div class="friend-info">
+                        <span class="friend-name">{{ f.display_name or f.username }}</span>
+                        <span class="friend-status-text">{{ f.custom_status_text or f.status or 'offline' }}</span>
+                    </div>
+                    <div class="friend-actions">
+                        <form method="POST" action="{{ url_for('start_dm') }}" style="margin:0; display:inline">
+                            <input type="hidden" name="username" value="{{ f.username }}">
+                            <button type="submit" class="btn-small btn-secondary" title="Message">&#9993;</button>
+                        </form>
+                        <button class="btn-small btn-danger" onclick="removeFriend({{ f.user_id }})" title="Remove">&#10005;</button>
+                    </div>
+                </div>
+                {% endfor %}
+                {% else %}
+                <div class="browse-empty">No friends yet. Add someone!</div>
+                {% endif %}
+            </div>
+
+            <!-- Pending -->
+            <div id="tab-pending" class="friends-list" style="display:none;">
+                {% if incoming_requests %}
+                <div style="padding: 8px 0; color: var(--text-muted); font-size: 12px; text-transform: uppercase; font-weight: 700;">Incoming</div>
+                {% for r in incoming_requests %}
+                <div class="friend-card">
+                    <div class="friend-avatar">{{ r.sender_username[0]|upper }}</div>
+                    <div class="friend-info">
+                        <span class="friend-name">{{ r.sender_display_name or r.sender_username }}</span>
+                        <span class="friend-status-text">Incoming request</span>
+                    </div>
+                    <div class="friend-actions">
+                        <button class="btn-small btn-primary" onclick="acceptRequest({{ r.id }})">Accept</button>
+                        <button class="btn-small btn-danger" onclick="denyRequest({{ r.id }})">Deny</button>
+                    </div>
+                </div>
+                {% endfor %}
+                {% endif %}
+
+                {% if outgoing_requests %}
+                <div style="padding: 8px 0; color: var(--text-muted); font-size: 12px; text-transform: uppercase; font-weight: 700;">Outgoing</div>
+                {% for r in outgoing_requests %}
+                <div class="friend-card">
+                    <div class="friend-avatar">{{ r.receiver_username[0]|upper }}</div>
+                    <div class="friend-info">
+                        <span class="friend-name">{{ r.receiver_display_name or r.receiver_username }}</span>
+                        <span class="friend-status-text">Outgoing request</span>
+                    </div>
+                    <div class="friend-actions">
+                        <button class="btn-small btn-danger" onclick="cancelRequest({{ r.id }})">Cancel</button>
+                    </div>
+                </div>
+                {% endfor %}
+                {% endif %}
+
+                {% if not incoming_requests and not outgoing_requests %}
+                <div class="browse-empty">No pending requests.</div>
+                {% endif %}
+            </div>
+
+            <!-- Blocked -->
+            <div id="tab-blocked" class="friends-list" style="display:none;">
+                {% if blocked_users %}
+                {% for b in blocked_users %}
+                <div class="friend-card">
+                    <div class="friend-avatar">{{ b.username[0]|upper }}</div>
+                    <div class="friend-info">
+                        <span class="friend-name">{{ b.username }}</span>
+                        <span class="friend-status-text">Blocked</span>
+                    </div>
+                    <div class="friend-actions">
+                        <button class="btn-small btn-secondary" onclick="unblockUser({{ b.blocked_user_id }})">Unblock</button>
+                    </div>
+                </div>
+                {% endfor %}
+                {% else %}
+                <div class="browse-empty">No blocked users.</div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Add Friend Modal -->
+<div class="modal-overlay" id="addFriendModal">
+    <div class="modal-box">
+        <h2>Add Friend</h2>
+        <div class="form-group">
+            <label>Username</label>
+            <input type="text" id="addFriendInput" placeholder="Enter a username..." autocomplete="off">
+        </div>
+        <div id="addFriendError" style="color: var(--red); font-size: 13px; margin-bottom: 8px; display: none;"></div>
+        <div class="modal-actions">
+            <button type="button" class="btn-small btn-secondary" onclick="document.getElementById('addFriendModal').classList.remove('active')">Cancel</button>
+            <button type="button" class="btn-small btn-primary" onclick="sendFriendRequest()">Send Request</button>
+        </div>
+    </div>
+</div>
+
+<!-- Create server modal -->
+<div class="modal-overlay" id="createServerModal">
+    <div class="modal-box">
+        <h2>Create a Server</h2>
+        <form method="POST" action="{{ url_for('create_server') }}">
+            <div class="form-group">
+                <label>Server Name</label>
+                <input type="text" name="name" required placeholder="My Awesome Server">
+            </div>
+            <div class="modal-actions">
+                <button type="button" class="btn-small btn-secondary" onclick="document.getElementById('createServerModal').classList.remove('active')">Cancel</button>
+                <button type="submit" class="btn-small btn-primary">Create</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    const apiUrl = "{{ api_url }}";
+    const token = "{{ token }}";
+    const headers = { "Authorization": "Bearer " + token, "Content-Type": "application/json" };
+
+    function showTab(name) {
+        document.querySelectorAll('.friends-list').forEach(el => el.style.display = 'none');
+        document.querySelectorAll('.friends-tab').forEach(el => el.classList.remove('active'));
+        document.getElementById('tab-' + name).style.display = '';
+        event.target.classList.add('active');
+    }
+
+    async function sendFriendRequest() {
+        const input = document.getElementById('addFriendInput');
+        const errorEl = document.getElementById('addFriendError');
+        errorEl.style.display = 'none';
+
+        try {
+            const resp = await fetch(apiUrl + '/friends/request', {
+                method: 'POST', headers, body: JSON.stringify({ username: input.value.trim() })
+            });
+            if (resp.ok) {
+                document.getElementById('addFriendModal').classList.remove('active');
+                input.value = '';
+                location.reload();
+            } else {
+                const data = await resp.json();
+                errorEl.textContent = data.detail || 'Failed';
+                errorEl.style.display = '';
+            }
+        } catch (e) { errorEl.textContent = 'Network error'; errorEl.style.display = ''; }
+    }
+
+    async function acceptRequest(id) {
+        await fetch(apiUrl + '/friends/request/' + id + '/accept', { method: 'POST', headers });
+        location.reload();
+    }
+
+    async function denyRequest(id) {
+        await fetch(apiUrl + '/friends/request/' + id + '/deny', { method: 'POST', headers });
+        location.reload();
+    }
+
+    async function cancelRequest(id) {
+        await fetch(apiUrl + '/friends/request/' + id, { method: 'DELETE', headers });
+        location.reload();
+    }
+
+    async function removeFriend(userId) {
+        if (!confirm('Remove this friend?')) return;
+        await fetch(apiUrl + '/friends/' + userId, { method: 'DELETE', headers });
+        location.reload();
+    }
+
+    async function unblockUser(userId) {
+        await fetch(apiUrl + '/friends/block/' + userId, { method: 'DELETE', headers });
+        location.reload();
+    }
+
+    // Handle Enter key in add friend input
+    document.getElementById('addFriendInput').addEventListener('keydown', function(e) {
+        if (e.key === 'Enter') sendFriendRequest();
+    });
+</script>
+{% endblock %}

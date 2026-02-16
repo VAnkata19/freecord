@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+{% block title_suffix %} - {{ current_server.name if current_server else "Server" }}{% endblock %}
+
+{% block body %}
+<div class="app-layout">
+    <!-- Server sidebar -->
+    <div class="server-sidebar">
+        <a href="{{ url_for('dms_page') }}" class="server-icon dm-home-icon" title="Direct Messages">@</a>
+        <div class="server-divider"></div>
+        {% for server in servers %}
+        <a href="{{ url_for('server_page', server_id=server.id) }}"
+           class="server-icon {% if server.id == server_id %}active{% endif %}"
+           title="{{ server.name }}">
+            {{ server.name[0]|upper }}
+        </a>
+        {% endfor %}
+        <div class="server-divider"></div>
+        <div class="server-icon add-server" onclick="document.getElementById('createServerModal').classList.add('active')" title="Create Server">+</div>
+    </div>
+
+    <!-- Channel sidebar -->
+    <div class="channel-sidebar">
+        <div class="channel-header">
+            {{ current_server.name if current_server else "Server" }}
+        </div>
+        <div class="channel-list">
+            {% for channel in channels %}
+            <a href="{{ url_for('channel_page', server_id=server_id, channel_id=channel.id) }}"
+               class="channel-item">
+                <span class="hash">#</span> {{ channel.name }}
+            </a>
+            {% endfor %}
+
+            <!-- Add channel form -->
+            <form class="inline-form" method="POST" action="{{ url_for('create_channel', server_id=server_id) }}">
+                <input type="text" name="name" placeholder="new-channel" required>
+                <button type="submit">+</button>
+            </form>
+        </div>
+
+        <div class="user-bar">
+            <span class="username">{{ username }}</span>
+            <div class="user-bar-actions">
+                <a href="{{ url_for('friends_page') }}" class="user-bar-btn" title="Friends">&#9829;</a>
+                <a href="{{ url_for('settings') }}" class="user-bar-btn" title="Settings">&#9881;</a>
+                <a href="{{ url_for('logout') }}" class="logout-btn">Log out</a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main content -->
+    <div class="main-content">
+        <div class="welcome-content">
+            <h2>{{ current_server.name if current_server else "Server" }}</h2>
+            {% if current_server %}
+            <p class="server-id-badge">Server ID: {{ current_server.id }}</p>
+            {% endif %}
+            <p>Select a channel from the sidebar to start chatting.</p>
+        </div>
+    </div>
+</div>
+
+<!-- Create server modal -->
+<div class="modal-overlay" id="createServerModal">
+    <div class="modal-box">
+        <h2>Create a Server</h2>
+        <form method="POST" action="{{ url_for('create_server') }}">
+            <div class="form-group">
+                <label>Server Name</label>
+                <input type="text" name="name" required placeholder="My Awesome Server">
+            </div>
+            <div class="modal-actions">
+                <button type="button" class="btn-small btn-secondary" onclick="document.getElementById('createServerModal').classList.remove('active')">Cancel</button>
+                <button type="submit" class="btn-small btn-primary">Create</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

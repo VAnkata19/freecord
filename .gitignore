@@ -1,0 +1,38 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+ENV/
+*.egg-info/
+.pytest_cache/
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+
+# Environment
+.env
+
+# User uploads
+backend_fastapi/avatars/*
+!backend_fastapi/avatars/.gitkeep
+backend_fastapi/attachments/*
+!backend_fastapi/attachments/.gitkeep
+
+# Rust
+rust_encryption_service/target/
+rust_encryption_service/Cargo.lock
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+
+CLAUDE.md

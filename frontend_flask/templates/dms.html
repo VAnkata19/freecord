@@ -1,0 +1,301 @@
+{% extends "base.html" %}
+{% block title_suffix %} - Direct Messages{% endblock %}
+
+{% block body %}
+<div class="app-layout">
+    <!-- Server sidebar -->
+    <div class="server-sidebar">
+        <a href="{{ url_for('dms_page') }}" class="server-icon dm-home-icon active" title="Direct Messages">@</a>
+        <div class="server-divider"></div>
+        {% for server in servers %}
+        <a href="{{ url_for('server_page', server_id=server.id) }}" class="server-icon" title="{{ server.name }}">
+            {{ server.name[0]|upper }}
+        </a>
+        {% endfor %}
+        <div class="server-divider"></div>
+        <div class="server-icon add-server" onclick="document.getElementById('createServerModal').classList.add('active')" title="Create Server">+</div>
+    </div>
+
+    <!-- DM sidebar: friends list with status and unread counts -->
+    <div class="channel-sidebar">
+        <div class="channel-header">Direct Messages</div>
+        <div class="dm-sidebar-search">
+            <input type="text" id="friendSearchInput" placeholder="Search friends..." autocomplete="off" oninput="filterFriends()">
+        </div>
+        <div class="channel-list" id="friendSidebarList">
+            {% for f in friends %}
+            {% if f.conversation_id %}
+            <a href="{{ url_for('dm_chat_page', conversation_id=f.conversation_id) }}" class="channel-item dm-friend-item" data-username="{{ f.username }}">
+                <div class="dm-sidebar-avatar">
+                    {{ (f.display_name or f.username)[0]|upper }}
+                    <span class="status-dot-sm status-{{ f.status or 'offline' }}"></span>
+                </div>
+                <span class="dm-friend-name">{{ f.display_name or f.username }}</span>
+                {% if f.unread_count > 0 %}
+                <span class="dm-unread-badge">{{ f.unread_count }}</span>
+                {% endif %}
+            </a>
+            {% else %}
+            <a href="#" class="channel-item dm-friend-item" data-username="{{ f.username }}" onclick="startDmWith('{{ f.username }}'); return false;">
+                <div class="dm-sidebar-avatar">
+                    {{ (f.display_name or f.username)[0]|upper }}
+                    <span class="status-dot-sm status-{{ f.status or 'offline' }}"></span>
+                </div>
+                <span class="dm-friend-name">{{ f.display_name or f.username }}</span>
+            </a>
+            {% endif %}
+            {% endfor %}
+
+            {% if not friends %}
+            <div class="dm-sidebar-empty">No friends yet. Add someone!</div>
+            {% endif %}
+        </div>
+
+        <div class="user-bar">
+            <span class="username">{{ username }}</span>
+            <div class="user-bar-actions">
+                <a href="{{ url_for('friends_page') }}" class="user-bar-btn" title="Friends">&#9829;</a>
+                <a href="{{ url_for('settings') }}" class="user-bar-btn" title="Settings">&#9881;</a>
+                <a href="{{ url_for('logout') }}" class="logout-btn">Log out</a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main content: friends management with tabs -->
+    <div class="main-content">
+        <div class="chat-header">
+            Friends
+        </div>
+
+        <!-- Tabs -->
+        <div class="friends-tabs">
+            <button class="friends-tab active" onclick="showDmTab('online', this)">Online</button>
+            <button class="friends-tab" onclick="showDmTab('all', this)">All</button>
+            <button class="friends-tab" onclick="showDmTab('pending', this)">
+                Pending
+                {% if incoming_requests %}<span class="badge">{{ incoming_requests|length }}</span>{% endif %}
+            </button>
+            <button class="friends-tab" onclick="showDmTab('add', this)">Add Friend</button>
+        </div>
+
+        <div class="friends-content">
+            <!-- Online Friends -->
+            <div id="dm-tab-online" class="friends-list">
+                {% set online_friends = friends|selectattr('status', 'equalto', 'online')|list %}
+                {% if online_friends %}
+                {% for f in online_friends %}
+                <div class="friend-card">
+                    <div class="friend-avatar">
+                        {{ (f.display_name or f.username)[0]|upper }}
+                        <span class="status-dot status-online"></span>
+                    </div>
+                    <div class="friend-info">
+                        <span class="friend-name">{{ f.display_name or f.username }}</span>
+                        <span class="friend-status-text">{{ f.custom_status_text or 'Online' }}</span>
+                    </div>
+                    <div class="friend-actions">
+                        <form method="POST" action="{{ url_for('start_dm') }}" style="margin:0; display:inline">
+                            <input type="hidden" name="username" value="{{ f.username }}">
+                            <button type="submit" class="btn-small btn-secondary" title="Message">&#9993;</button>
+                        </form>
+                    </div>
+                </div>
+                {% endfor %}
+                {% else %}
+                <div class="browse-empty">No friends online right now.</div>
+                {% endif %}
+            </div>
+
+            <!-- All Friends -->
+            <div id="dm-tab-all" class="friends-list" style="display:none;">
+                {% if friends %}
+                {% for f in friends %}
+                <div class="friend-card">
+                    <div class="friend-avatar">
+                        {{ (f.display_name or f.username)[0]|upper }}
+                        <span class="status-dot status-{{ f.status or 'offline' }}"></span>
+                    </div>
+                    <div class="friend-info">
+                        <span class="friend-name">{{ f.display_name or f.username }}</span>
+                        <span class="friend-status-text">{{ f.custom_status_text or f.status or 'offline' }}</span>
+                    </div>
+                    <div class="friend-actions">
+                        <form method="POST" action="{{ url_for('start_dm') }}" style="margin:0; display:inline">
+                            <input type="hidden" name="username" value="{{ f.username }}">
+                            <button type="submit" class="btn-small btn-secondary" title="Message">&#9993;</button>
+                        </form>
+                        <button class="btn-small btn-danger" onclick="removeFriend({{ f.user_id }})" title="Remove">&#10005;</button>
+                    </div>
+                </div>
+                {% endfor %}
+                {% else %}
+                <div class="browse-empty">No friends yet. Add someone!</div>
+                {% endif %}
+            </div>
+
+            <!-- Pending Requests -->
+            <div id="dm-tab-pending" class="friends-list" style="display:none;">
+                {% if incoming_requests %}
+                <div class="friends-section-label">Incoming</div>
+                {% for r in incoming_requests %}
+                <div class="friend-card" id="request-{{ r.id }}">
+                    <div class="friend-avatar">{{ (r.sender_display_name or r.sender_username)[0]|upper }}</div>
+                    <div class="friend-info">
+                        <span class="friend-name">{{ r.sender_display_name or r.sender_username }}</span>
+                        <span class="friend-status-text">Wants to be your friend</span>
+                    </div>
+                    <div class="friend-actions">
+                        <button class="btn-small btn-primary" onclick="acceptRequest({{ r.id }})">Accept</button>
+                        <button class="btn-small btn-danger" onclick="denyRequest({{ r.id }})">Deny</button>
+                    </div>
+                </div>
+                {% endfor %}
+                {% endif %}
+
+                {% if outgoing_requests %}
+                <div class="friends-section-label">Outgoing</div>
+                {% for r in outgoing_requests %}
+                <div class="friend-card" id="request-{{ r.id }}">
+                    <div class="friend-avatar">{{ (r.receiver_display_name or r.receiver_username)[0]|upper }}</div>
+                    <div class="friend-info">
+                        <span class="friend-name">{{ r.receiver_display_name or r.receiver_username }}</span>
+                        <span class="friend-status-text">Request pending</span>
+                    </div>
+                    <div class="friend-actions">
+                        <button class="btn-small btn-danger" onclick="cancelRequest({{ r.id }})">Cancel</button>
+                    </div>
+                </div>
+                {% endfor %}
+                {% endif %}
+
+                {% if not incoming_requests and not outgoing_requests %}
+                <div class="browse-empty">No pending requests.</div>
+                {% endif %}
+            </div>
+
+            <!-- Add Friend -->
+            <div id="dm-tab-add" class="friends-list" style="display:none;">
+                <div class="add-friend-section">
+                    <h3 class="add-friend-title">Add Friend</h3>
+                    <p class="add-friend-desc">You can add friends by their username.</p>
+                    <div class="add-friend-form">
+                        <input type="text" id="addFriendInput" placeholder="Enter a username..." autocomplete="off">
+                        <button class="btn-small btn-primary" onclick="sendFriendRequest()">Send Request</button>
+                    </div>
+                    <div id="addFriendMsg" class="add-friend-msg" style="display:none;"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Create server modal -->
+<div class="modal-overlay" id="createServerModal">
+    <div class="modal-box">
+        <h2>Create a Server</h2>
+        <form method="POST" action="{{ url_for('create_server') }}">
+            <div class="form-group">
+                <label>Server Name</label>
+                <input type="text" name="name" required placeholder="My Awesome Server">
+            </div>
+            <div class="modal-actions">
+                <button type="button" class="btn-small btn-secondary" onclick="document.getElementById('createServerModal').classList.remove('active')">Cancel</button>
+                <button type="submit" class="btn-small btn-primary">Create</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    const apiUrl = "{{ api_url }}";
+    const token = "{{ token }}";
+    const headers = { "Authorization": "Bearer " + token, "Content-Type": "application/json" };
+
+    // Tab switching
+    function showDmTab(name, btn) {
+        document.querySelectorAll('.friends-list').forEach(el => el.style.display = 'none');
+        document.querySelectorAll('.friends-tab').forEach(el => el.classList.remove('active'));
+        document.getElementById('dm-tab-' + name).style.display = '';
+        if (btn) btn.classList.add('active');
+    }
+
+    // Sidebar friend search
+    function filterFriends() {
+        const q = document.getElementById('friendSearchInput').value.toLowerCase();
+        document.querySelectorAll('.dm-friend-item').forEach(el => {
+            const name = el.getAttribute('data-username').toLowerCase();
+            el.style.display = name.includes(q) ? '' : 'none';
+        });
+    }
+
+    // Start DM with a friend (for friends without existing conversation)
+    async function startDmWith(username) {
+        try {
+            const resp = await fetch(apiUrl + '/dms/', {
+                method: 'POST', headers, body: JSON.stringify({ username: username })
+            });
+            if (resp.ok) {
+                const data = await resp.json();
+                window.location.href = '/dms/' + data.id;
+            }
+        } catch (e) {}
+    }
+
+    // Friend request actions
+    async function sendFriendRequest() {
+        const input = document.getElementById('addFriendInput');
+        const msgEl = document.getElementById('addFriendMsg');
+        const username = input.value.trim();
+        if (!username) return;
+
+        try {
+            const resp = await fetch(apiUrl + '/friends/request', {
+                method: 'POST', headers, body: JSON.stringify({ username: username })
+            });
+            if (resp.ok) {
+                msgEl.textContent = 'Friend request sent to ' + username + '!';
+                msgEl.className = 'add-friend-msg success';
+                msgEl.style.display = '';
+                input.value = '';
+            } else {
+                const data = await resp.json();
+                msgEl.textContent = data.detail || 'Failed to send request';
+                msgEl.className = 'add-friend-msg error';
+                msgEl.style.display = '';
+            }
+        } catch (e) {
+            msgEl.textContent = 'Network error';
+            msgEl.className = 'add-friend-msg error';
+            msgEl.style.display = '';
+        }
+    }
+
+    async function acceptRequest(id) {
+        await fetch(apiUrl + '/friends/request/' + id + '/accept', { method: 'POST', headers });
+        location.reload();
+    }
+
+    async function denyRequest(id) {
+        await fetch(apiUrl + '/friends/request/' + id + '/deny', { method: 'POST', headers });
+        location.reload();
+    }
+
+    async function cancelRequest(id) {
+        await fetch(apiUrl + '/friends/request/' + id, { method: 'DELETE', headers });
+        location.reload();
+    }
+
+    async function removeFriend(userId) {
+        if (!confirm('Remove this friend?')) return;
+        await fetch(apiUrl + '/friends/' + userId, { method: 'DELETE', headers });
+        location.reload();
+    }
+
+    // Handle Enter key in add friend input
+    document.getElementById('addFriendInput').addEventListener('keydown', function(e) {
+        if (e.key === 'Enter') sendFriendRequest();
+    });
+</script>
+{% endblock %}

@@ -1,0 +1,106 @@
+{% extends "base.html" %}
+{% block title_suffix %} - Dashboard{% endblock %}
+
+{% block body %}
+<div class="app-layout">
+    <!-- Server sidebar -->
+    <div class="server-sidebar">
+        <a href="{{ url_for('dms_page') }}" class="server-icon dm-home-icon" title="Direct Messages">@</a>
+        <div class="server-divider"></div>
+        {% for server in servers %}
+        <a href="{{ url_for('server_page', server_id=server.id) }}" class="server-icon" title="{{ server.name }}">
+            {{ server.name[0]|upper }}
+        </a>
+        {% endfor %}
+        <div class="server-divider"></div>
+        <div class="server-icon add-server" onclick="document.getElementById('createServerModal').classList.add('active')" title="Create Server">+</div>
+    </div>
+
+    <!-- Channel sidebar (empty on dashboard) -->
+    <div class="channel-sidebar">
+        <div class="channel-header">Securecord</div>
+        <div class="channel-list">
+            <div style="padding: 12px; color: var(--text-muted); font-size: 13px;">
+                Select a server or create a new one to get started.
+            </div>
+
+            <div class="join-section">
+                <label>Join by ID</label>
+                <form class="inline-form" method="POST" id="joinForm">
+                    <input type="number" id="joinServerId" placeholder="ID" min="1" required>
+                    <button type="submit">Join</button>
+                </form>
+            </div>
+        </div>
+
+        <div class="user-bar">
+            <span class="username">{{ username }}</span>
+            <div class="user-bar-actions">
+                <a href="{{ url_for('friends_page') }}" class="user-bar-btn" title="Friends">&#9829;</a>
+                <a href="{{ url_for('settings') }}" class="user-bar-btn" title="Settings">&#9881;</a>
+                <a href="{{ url_for('logout') }}" class="logout-btn">Log out</a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main content -->
+    <div class="main-content">
+        <div class="chat-header">Discover Servers</div>
+        <div class="browse-servers">
+            {% if all_servers %}
+                {% for server in all_servers %}
+                <div class="browse-server-card">
+                    <div class="browse-server-icon">{{ server.name[0]|upper }}</div>
+                    <div class="browse-server-info">
+                        <span class="browse-server-name">{{ server.name }}</span>
+                        <span class="browse-server-id">ID: {{ server.id }}</span>
+                    </div>
+                    {% if server.joined %}
+                    <a href="{{ url_for('server_page', server_id=server.id) }}" class="btn-small btn-primary">Open</a>
+                    {% else %}
+                    <form method="POST" action="{{ url_for('join_server', server_id=server.id) }}" style="margin:0">
+                        <button type="submit" class="btn-small btn-primary" style="background:var(--green)">Join</button>
+                    </form>
+                    {% endif %}
+                </div>
+                {% endfor %}
+            {% else %}
+                <div class="browse-empty">No servers yet. Create one to get started!</div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Create server modal -->
+<div class="modal-overlay" id="createServerModal">
+    <div class="modal-box">
+        <h2>Create a Server</h2>
+        <form method="POST" action="{{ url_for('create_server') }}">
+            <div class="form-group">
+                <label>Server Name</label>
+                <input type="text" name="name" required autofocus placeholder="My Awesome Server">
+            </div>
+            <div class="modal-actions">
+                <button type="button" class="btn-small btn-secondary" onclick="document.getElementById('createServerModal').classList.remove('active')">Cancel</button>
+                <button type="submit" class="btn-small btn-primary">Create</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+    // Handle join server form
+    document.getElementById('joinForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+        const serverId = document.getElementById('joinServerId').value;
+        if (serverId) {
+            // POST to join endpoint
+            const form = document.createElement('form');
+            form.method = 'POST';
+            form.action = '/servers/' + serverId + '/join';
+            document.body.appendChild(form);
+            form.submit();
+        }
+    });
+</script>
+{% endblock %}
