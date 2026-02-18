@@ -37,3 +37,4 @@ rust_encryption_service/Cargo.lock
 
 CLAUDE.md
 /backend_fastapi/uploads
+scripts/.pids
