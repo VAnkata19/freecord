@@ -338,7 +338,7 @@ def settings():
             resp = req.post(
                 f"{API_URL}/auth/avatar",
                 headers=headers,
-                files={"file": (avatar_file.filename, avatar_file.stream, avatar_file.content_type)},
+                files={"file": (avatar_file.filename, avatar_file.stream, avatar_file.content_type)}, 
             )
             if resp.status_code != 200:
                 flash(resp.json().get("detail", "Avatar upload failed"), "error")
