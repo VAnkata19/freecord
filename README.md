@@ -2,6 +2,10 @@
 
 A Discord-style encrypted chat application with end-to-end encryption using AES-256-GCM. Built with a microservices architecture featuring a Rust encryption service, FastAPI backend, and Flask frontend.
 
+## Short Demo
+
+https://github.com/user-attachments/assets/83d48c52-d49c-4c82-8860-59e1c425caf3
+
 ## Features
 
 ✨ **Server & Channel Management** — Create servers and channels to organize conversations
