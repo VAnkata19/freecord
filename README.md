@@ -1,6 +1,10 @@
 # Freecord
 
-A Discord-style encrypted chat application with end-to-end encryption using AES-256-GCM. Built with a microservices architecture featuring a Rust encryption service, FastAPI backend, and Flask frontend.
+Discord, but your messages actually stay private. Freecord is a full-featured chat platform with real-time messaging, servers, channels, and DMs — all encrypted with AES-256-GCM so nobody but you and your recipients can read them.
+
+## Overview
+
+Freecord is a self-hosted, Discord-style chat app built with a microservices architecture. A Rust service handles all encryption/decryption, a FastAPI backend manages auth, messaging, and WebSocket connections, and a Flask frontend delivers the UI. Every message stored in the database is ciphertext — the plaintext never touches disk.
 
 ## Short Demo
 
